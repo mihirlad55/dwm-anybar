@@ -47,10 +47,8 @@
 /* macros */
 #define BUTTONMASK              (ButtonPressMask|ButtonReleaseMask)
 #define CLEANMASK(mask)         (mask & ~(numlockmask|LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
-#define MONCONTAINS(x,y,w,h,m)  (MAX(0, MIN((x)+(w),(m)->mx+(m)->mw) - MAX((x),(m)->mx)) \
+#define INTERSECT(x,y,w,h,m)    (MAX(0, MIN((x)+(w),(m)->mx+(m)->mw) - MAX((x),(m)->mx)) \
                                * MAX(0, MIN((y)+(h),(m)->my+(m)->mh) - MAX((y),(m)->my)))
-#define INTERSECT(x,y,w,h,m)    (MAX(0, MIN((x)+(w),(m)->wx+(m)->ww) - MAX((x),(m)->wx)) \
-                               * MAX(0, MIN((y)+(h),(m)->wy+(m)->wh) - MAX((y),(m)->wy)))
 #define ISVISIBLE(C)            ((C->tags & C->mon->tagset[C->mon->seltags]))
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
@@ -151,7 +149,6 @@ static void arrange(Monitor *m);
 static void arrangemon(Monitor *m);
 static void attach(Client *c);
 static void attachstack(Client *c);
-static Monitor *bartomon(int x, int y, int w, int h);
 static void buttonpress(XEvent *e);
 static void checkotherwm(void);
 static void cleanup(void);
@@ -285,7 +282,7 @@ void
 addaltbar(Window win, XWindowAttributes *wa)
 {
 	Monitor *m;
-	if (!(m = bartomon(wa->x, wa->y, wa->width, wa->height)))
+	if (!(m = recttomon(wa->x, wa->y, wa->width, wa->height)))
 		return;
 
 	m->barwin = win;
@@ -436,20 +433,6 @@ attachstack(Client *c)
 {
 	c->snext = c->mon->stack;
 	c->mon->stack = c;
-}
-
-Monitor *
-bartomon(int x, int y, int w, int h)
-{
-	Monitor *m, *r = selmon;
-	int a, area = 0;
-
-	for (m = mons; m; m = m->next)
-		if ((a = MONCONTAINS(x, y, w, h, m)) > area) {
-			area = a;
-			r = m;
-		}
-	return r;
 }
 
 void
