@@ -234,6 +234,7 @@ static void updatewmhints(Client *c);
 static void view(const Arg *arg);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
+static int wmclasscontains(Window win, const char *class);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
@@ -293,6 +294,7 @@ addaltbar(Window win, XWindowAttributes *wa)
 	updatebarpos(m);
 	arrange(m);
 	XSelectInput(dpy, win, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
+	XMoveResizeWindow(dpy, win, wa->x, wa->y, wa->width, wa->height);
 	XMapWindow(dpy, win);
 	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
 		(unsigned char *) &win, 1);
@@ -1131,23 +1133,14 @@ maprequest(XEvent *e)
 {
 	static XWindowAttributes wa;
 	XMapRequestEvent *ev = &e->xmaprequest;
-	XClassHint ch = { NULL, NULL };
 
 	if (!XGetWindowAttributes(dpy, ev->window, &wa))
 		return;
 	if (wa.override_redirect)
 		return;
-	if (XGetClassHint(dpy, ev->window, &ch)) {
-		if (ch.res_class && strstr(ch.res_class, altbarclass) != NULL) {
-			addaltbar(ev->window, &wa);
-			if (ch.res_class)
-				XFree(ch.res_class);
-			if (ch.res_name)
-				XFree(ch.res_name);
-			return;
-		}
-	}
-	if (!wintoclient(ev->window))
+	if (wmclasscontains(ev->window, altbarclass))
+		addaltbar(ev->window, &wa);
+	else if (!wintoclient(ev->window))
 		manage(ev->window, &wa);
 }
 
@@ -1443,7 +1436,9 @@ scan(void)
 			if (!XGetWindowAttributes(dpy, wins[i], &wa)
 			|| wa.override_redirect || XGetTransientForHint(dpy, wins[i], &d1))
 				continue;
-			if (wa.map_state == IsViewable || getstate(wins[i]) == IconicState)
+			if (wmclasscontains(wins[i], altbarclass))
+				addaltbar(wins[i], &wa);
+			else if (wa.map_state == IsViewable || getstate(wins[i]) == IconicState)
 				manage(wins[i], &wa);
 		}
 		for (i = 0; i < num; i++) { /* now the transients */
@@ -1595,8 +1590,8 @@ setup(void)
 	drw = drw_create(dpy, screen, root, sw, sh);
 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
 		die("no fonts could be loaded.");
-	lrpad = drw->fonts->h;
-	bh = drw->fonts->h + 2;
+	lrpad = usealtbar ? 0 : drw->fonts->h;
+	bh = usealtbar ? 0 : drw->fonts->h + 2;
 	updategeom();
 	/* init atoms */
 	utf8string = XInternAtom(dpy, "UTF8_STRING", False);
@@ -2129,6 +2124,24 @@ wintomon(Window w)
 		return c->mon;
 	return selmon;
 }
+
+int
+wmclasscontains(Window win, const char *class)
+{
+	XClassHint ch = { NULL, NULL };
+	int res = 0;
+
+	if (XGetClassHint(dpy, win, &ch) && ch.res_class)
+		res = (strstr(ch.res_class, class) != NULL);
+
+	if (ch.res_class)
+		XFree(ch.res_class);
+	if (ch.res_name)
+		XFree(ch.res_name);
+
+	return res;
+}
+
 
 /* There's no way to check accesses to destroyed windows, thus those cases are
  * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
