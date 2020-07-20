@@ -1098,7 +1098,7 @@ managealtbar(Window win, XWindowAttributes *wa)
 
 	m->barwin = win;
 	m->by = wa->y;
-	m->bh = wa->height;
+	bh = m->bh = wa->height;
 	updatebarpos(m);
 	arrange(m);
 	XSelectInput(dpy, win, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
