@@ -232,7 +232,7 @@ static void updatewmhints(Client *c);
 static void view(const Arg *arg);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
-static int wmclasscontains(Window win, const char *class);
+static int wmclasscontains(Window win, const char *class, const char *name);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
@@ -1128,7 +1128,7 @@ maprequest(XEvent *e)
 		return;
 	if (wa.override_redirect)
 		return;
-	if (wmclasscontains(ev->window, altbarclass))
+	if (wmclasscontains(ev->window, altbarclass, ""))
 		managealtbar(ev->window, &wa);
 	else if (!wintoclient(ev->window))
 		manage(ev->window, &wa);
@@ -1426,7 +1426,7 @@ scan(void)
 			if (!XGetWindowAttributes(dpy, wins[i], &wa)
 			|| wa.override_redirect || XGetTransientForHint(dpy, wins[i], &d1))
 				continue;
-			if (wmclasscontains(wins[i], altbarclass))
+			if (wmclasscontains(wins[i], altbarclass, ""))
 				managealtbar(wins[i], &wa);
 			else if (wa.map_state == IsViewable || getstate(wins[i]) == IconicState)
 				manage(wins[i], &wa);
@@ -2133,13 +2133,18 @@ wintomon(Window w)
 }
 
 int
-wmclasscontains(Window win, const char *class)
+wmclasscontains(Window win, const char *class, const char *name)
 {
 	XClassHint ch = { NULL, NULL };
-	int res = 0;
+	int res = 1;
 
-	if (XGetClassHint(dpy, win, &ch) && ch.res_class)
-		res = (strstr(ch.res_class, class) != NULL);
+	if (XGetClassHint(dpy, win, &ch)) {
+		if (ch.res_name && strstr(ch.res_name, name) == NULL)
+			res = 0;
+		if (ch.res_class && strstr(ch.res_class, class) == NULL)
+			res = 0;
+	} else
+		res = 0;
 
 	if (ch.res_class)
 		XFree(ch.res_class);
@@ -2148,7 +2153,6 @@ wmclasscontains(Window win, const char *class)
 
 	return res;
 }
-
 
 /* There's no way to check accesses to destroyed windows, thus those cases are
  * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
