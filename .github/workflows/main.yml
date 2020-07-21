@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       patch-name: ${{ steps.capture-properties.outputs.patch-name }}
+      polybar-tray-fix-patch-name: ${{ steps.capture-properties.outputs.polybar-tray-fix-patch-name }}
       update-patch-name: ${{ steps.capture-properties.outputs.update-patch-name }}
       update-notes: ${{ steps.capture-properties.outputs.update-notes }}
       last-tag: ${{ steps.capture-properties.outputs.last-tag }}
@@ -33,6 +34,7 @@ jobs:
           patch_date="$(date +%Y%m%d)"
           patch_hash="$(git rev-parse --short unpatched)"
           echo "::set-output name=patch-name::dwm-anybar-${patch_date}-${patch_hash}.diff"
+          echo "::set-output name=polybar-tray-fix-patch-name::dwm-anybar-polybar-tray-fix-${patch_date}-${patch_hash}.diff"
         fi
 
         last_tag="$(git tag --sort=committerdate | grep 'v' | tail -n2 | head -n1)"
@@ -158,6 +160,80 @@ jobs:
         path: ${{ github.workspace }}/${{ needs.set-patch-properties.outputs.patch-name }}
 
 
+  generate-polybar-tray-fix-patch:
+    needs: [set-patch-properties, release]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        ref: unpatched
+
+    - name: Set git username and email
+      run: |
+          git config user.email "$GIT_AUTHOR_EMAIL"
+          git config user.name "$GITHUB_ACTOR"
+      env:
+        GIT_AUTHOR_EMAIL: mihirlad55@gmail.com
+
+    - name: Create clean temporary branch
+      run: git checkout -B temp
+
+    - name: Squash polybar-tray-fix into branch temp
+      run: git merge --squash origin/polybar-tray-fix
+
+    - name: Make patch commit
+      run: echo "$COMMIT_MESSAGE" | git commit -F -
+      env:
+        COMMIT_MESSAGE: |
+          Add support for managing external status bars
+
+          This patch allows dwm to manage other status bars such as
+          polybar/lemonbar without them needing to set override-redirect. For
+          all intents and purposes, DWM treats this bar as if it were its own
+          and as a result helps the status bar and DWM live in harmony.
+
+          This has a few advantages
+          * The bar does not block fullscreen windows
+          * DWM makes room for the status bar, so windows do not overlap the bar
+          * The bar can be hidden/killed and DWM will not keep an unsightly gap
+            where the bar was
+          * DWM receives EnterNotify events when your cursor enters the bar
+
+          To use another status bar, set usealtbar to 1 in your config.h and set
+          altbarclass to the class name (can be found using xprop) to the class
+          name of your status bar. Also make sure that if your status bar will
+          be displayed on top, topbar is set to 1 in your config, and if it will
+          be displayed on bottom, topbar is set to 0. This patch does not
+          support bars that are not docked at the top or at the bottom of your
+          monitor.
+
+          This verison of the patch fixes handling of polybar's tray.
+
+          The patch is developed at https://github.com/mihirlad55/dwm-anybar
+
+    - name: Generate patch
+      run: git format-patch --stdout HEAD^ ':(exclude).github' ':(exclude)README' ':(exclude)README.md' > "$PATCH_NAME"
+      env:
+        PATCH_NAME: ${{ needs.set-patch-properties.outputs.polybar-tray-fix-patch-name }}
+
+    - name: Upload patch asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release.outputs.upload-url }}
+        asset_path: ${{ github.workspace }}/${{ needs.set-patch-properties.outputs.polybar-tray-fix-patch-name }}
+        asset_name: ${{ needs.set-patch-properties.outputs.polybar-tray-fix-patch-name }}
+        asset_content_type: text/plain
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ${{ needs.set-patch-properties.outputs.polybar-tray-fix-patch-name }}
+        path: ${{ github.workspace }}/${{ needs.set-patch-properties.outputs.polybar-tray-fix-patch-name }}
+
+
   generate-update-patch:
     needs: [set-patch-properties, release]
     runs-on: ubuntu-latest
@@ -209,3 +285,4 @@ jobs:
       with:
         name: ${{ needs.set-patch-properties.outputs.update-patch-name }}
         path: ${{ github.workspace }}/${{ needs.set-patch-properties.outputs.update-patch-name }}
+
