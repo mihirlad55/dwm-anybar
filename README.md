@@ -77,6 +77,17 @@ patches:
 * xrdb
 
 
+## Polybar Tray Fix
+Since polybar's tray is handled as a separate window and is populated slowly, it
+is difficult to manage. There is a `polybar-tray-fix` version of the patch that
+allows dwm to manage the tray. The tray isn't actually managed until the
+togglebar command is called, but it fixes the issue where toggling the bar would
+not hide the tray.
+
+This version of the patch adds `alttrayname` to config.def.h which is already
+set to the correct value.
+
+
 ## Related Projects
 See [dwm-ipc](https://github.com/mihirlad55/dwm-ipc)
 
