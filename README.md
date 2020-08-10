@@ -26,6 +26,7 @@ static const int showbar       = 1;          /* 0 means no bar */
 static const int topbar        = 1;          /* 0 means bottom bar */
 static const int usealtbar     = 1;          /* 1 means use non-dwm status bar */
 static const char *altbarclass = "Polybar";  /* Alternate bar class name */
+static const char *altbarcmd   = "$HOME/bar.sh"; /* Alternate bar launch command */
 ```
 `showbar` and `topbar` affect the external status bar as it would dwm's status
 bar. `showbar` must be `1` to show the external bar. `topbar` must be set
@@ -46,6 +47,18 @@ xprop(1):
                               ^^^^^
                               altbarclass should be set to this
  WM_NAME(STRING) = title
+```
+
+`altbarcmd` can be set to the path to a script that launches your bar.
+Environment variables are supported. This method to starting your bar is
+preferred since it ensures that the bar launches once dwm is ready rather than
+launching too early. Make sure this script checks for running bars before
+launching, else restarting dwm will cause duplicate bars. One way to do this
+would be to add something like this at the beginning of your script:
+```
+if pgrep '^polybar' > /dev/null; then
+  exit 0
+fi
 ```
 
 
