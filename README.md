@@ -50,6 +50,9 @@ xprop(1):
 ```
 
 `altbarcmd` can be set to the path to a script that launches your bar.
+This script should launch the bar in the background (i.e. with an `&` after the
+launch command in the script), otherwise dwm will keep waiting for the launch
+script to end and freeze.
 Environment variables are supported. This method to starting your bar is
 preferred since it ensures that the bar launches once dwm is ready rather than
 launching too early. Make sure this script checks for running bars before
